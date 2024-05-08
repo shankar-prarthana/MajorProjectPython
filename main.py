@@ -4,6 +4,7 @@ import re
 from PIL import Image, ImageEnhance
 import pytesseract
 from fuzzywuzzy import fuzz
+from PIL import ExifTags
 
 # Define paths and image directory
 path_to_tesseract = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -34,13 +35,33 @@ def preprocess_data(value):
 # Function to process each image
 def process_image(image_path, csv_writer):
     # Enhance OCR by preprocessing the image
-    img = Image.open(image_path).convert("RGB")
+    img = Image.open(image_path)
+
+    # Check Exif data for image orientation
+    try:
+        exif = dict(img._getexif().items())
+        orientation = exif.get(274)
+    except AttributeError:
+        orientation = 1
+
+    # Rotate image if needed
+    if orientation in [3, 6, 8]:
+        # Rotate counter-clockwise for Exif orientation 6
+        if orientation == 6:
+            img = img.rotate(270, expand=True)
+        # Rotate clockwise for Exif orientations 3 and 8
+        elif orientation in [3, 8]:
+            img = img.rotate(90, expand=True)
+
+    # Enhance OCR by preprocessing the image
     enhancer = ImageEnhance.Contrast(img)
     img = enhancer.enhance(2.0)  # Increase contrast for better text extraction
     img = img.convert("L")  # Convert to grayscale
 
     text = pytesseract.image_to_string(img)
     print(f"Extracted text from {image_path}:")
+    #print(f"Text : {text}")
+
     # Initialize variables to store data
     result = ''
     parameters = {key: '' for key in
